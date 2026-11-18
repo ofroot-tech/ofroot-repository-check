@@ -1,0 +1,11 @@
+{
+  "name": "ofroot-repository-check",
+  "version": "0.1.0",
+  "description": "Local, report-only checks for selected credential, code and optional health-data patterns in Git index snapshots.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "bin": { "ofroot-repo-check": "bin/ofroot-repo-check.mjs" },
+  "files": ["bin/", "lib/", "skills/", "templates/", "README.md", "LICENSE"],
+  "scripts": { "test": "node --test test/*.test.mjs" }
+}

@@ -1,0 +1,41 @@
+# Review and vendor the standalone scanner at .ofroot/repository-check first.
+# Copy this file to .github/workflows/ofroot-repository-check.yml.
+# Run only from a trusted ref containing the reviewed scanner.
+name: OfRoot repository check
+
+on:
+  workflow_dispatch:
+    inputs:
+      health_data:
+        description: Check for possible sensitive health data
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Report-only preview: do not make this workflow a required merge check.
+    continue-on-error: true
+    steps:
+      - name: Check out trusted source
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Print redacted report
+        shell: bash
+        env:
+          HEALTH_DATA: ${{ inputs.health_data }}
+        run: |
+          flags=()
+          if [[ "$HEALTH_DATA" == "true" ]]; then
+            flags+=(--health-data)
+          fi
+          node .ofroot/repository-check/bin/ofroot-repo-check.mjs \
+            --root . --format json "${flags[@]}"
