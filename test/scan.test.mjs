@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, delimiter } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { scanRepository, formatText } from '../lib/scan.mjs';
@@ -248,4 +248,24 @@ test('CLI exits two when a skipped blob makes coverage incomplete', t => {
   assert.equal(result.status, 2);
   assert.match(result.stdout, /partial/);
   assert.match(result.stdout, /"binary":1/);
+});
+
+test('harmless Git stderr larger than an object-size response does not invalidate the scan', { skip: process.platform === 'win32' }, t => {
+  const root = fixture(t);
+  put(root, 'data.txt', accessKey());
+  stage(root);
+  const actualGit = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+  const tools = join(root, 'synthetic-tools');
+  const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+  put(root, 'synthetic-tools/git', `#!/bin/sh\nprintf '%s\\n' '${'SYNTHETIC_HARMLESS_WARNING_'.repeat(20)}' >&2\nexec ${quote(actualGit)} "$@"\n`);
+  execFileSync('chmod', ['+x', join(tools, 'git')]);
+  const previous = process.env.PATH;
+  process.env.PATH = tools + delimiter + previous;
+  try {
+    const report = scanRepository({ root });
+    assert.equal(report.status, 'complete');
+    assert.equal(report.coverage.filesScanned, 1);
+    assert.equal(report.findings.length, 1);
+    assert.ok(!JSON.stringify(report).includes('SYNTHETIC_HARMLESS_WARNING'));
+  } finally { process.env.PATH = previous; }
 });
